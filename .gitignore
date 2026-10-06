@@ -1,0 +1,8 @@
+# files Git should ignore
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.parquet
+*.db
+mlruns/
+mlartifacts/

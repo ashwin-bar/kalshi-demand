@@ -1,0 +1,51 @@
+# Decision log
+
+| # | Date | Decision | Evidence |
+|---|------|----------|----------|
+| 1 | 2026-10-03 | Kalshi only for v1; Polymarket later | Kalshi has per-period volume; Polymarket needs trade-level aggregation |
+| 2 | 2026-10-03 | Exclude multivariate (combo) markets | Flood live listings with zero-volume synthetic markets |
+| 3 | 2026-10-03 | Enumerate both live and historical tiers; read cutoff each run | Live tier holds only post-2026-08-04 settlements |
+| 4 | 2026-10-04 | A "day" is the US Eastern calendar day | 100% of daily candles end at New York midnight |
+| 5 | 2026-10-04 | Listed lifetime volume is exact | Candle sums = listed volume for 180/180 markets |
+| 6 | 2026-10-04 | Do not use `occurrence_datetime` | 19% populated in archive; meaning changed between tiers |
+| 7 | 2026-10-04 | Per-event candle endpoint unusable for archive | Returns success with 0 markets for archived events |
+| 8 | 2026-10-04 | Close-date anchoring fails for sports | NBA late games close after midnight ET; day offsets mix game types |
+| 9 | 2026-10-04 | **Resolved by #10.** Forecast target: A / B / C | See checkpoint notes |
+| 10 | 2026-10-04 | Forecast target: lifetime contracts per event, forecast at listing and at h hours before close; reconciled hierarchy event → series×event-date → category → total. **Issue times revised by #19** | Exact target (row 5); calendar-day flow needs approximation (KXHIGHLAX WAPE 4–9%) and fails for sports (row 8) |
+| 11 | 2026-10-04 | **Superseded by #17.** v1 scope: short-cycle events only; long-dated markets excluded | Lifetime volume can't be dated meaningfully for markets trading for months; coverage to be measured |
+| 12 | 2026-10-04 | **Superseded by #44.** Training window from 2025-01; growth modelled explicitly | Most head series start 2025; Kalshi volume still growing sharply month on month |
+| 13 | 2026-10-04 | **Superseded by #45.** Treat Volume Incentive Program end (no earlier than 2026-10-13) as a regime break and a natural experiment | Kalshi CFTC filing, 2026-09-28; pre-analysis plan to be written before the end date |
+| 14 | 2026-10-04 | Do not use `strike_date` as event date | 8% filled on KXHIGHLAX, 0% on NBA; where filled it equals settlement day (event date + 1) |
+| 15 | 2026-10-04 | Event date: milestone start date (ET) for sports; per-series close-day offset otherwise. **Implementation detailed in #20** | NBA milestones 100% coverage, 1,483/1,484 match; KXHIGHLAX close −1 holds 638/638 |
+| 16 | 2026-10-04 | Strike count is known at listing for fixed-structure series. **Dynamic-strike handling in #22** | All markets open simultaneously for 100% of KXHIGHLAX and NBA events; to be checked on dynamic-strike series |
+| 17 | 2026-10-04 | Scope by rule, not volume rank: recurring series (≥20 events in training window) whose events have a scheduled occurrence date known at listing. Volume rank only sets crawl order | Lifetime-volume rank uses test-period data; lifespan rule covered only 78% of head volume and wrongly excluded weekly sports; rule covers ≈97% |
+| 18 | 2026-10-04 | Head/tail class assigned from training-period volume at each forecast date; top node named "in-scope total" | Avoids look-ahead; in-scope total ≈ 87% of exchange volume, not Kalshi's total |
+| 19 | 2026-10-04 | Issue times relative to event date: T−7d, T−1d, T−h (listing time if not yet listed); volume before issue time = "volume so far"; report a forecast-horizon accuracy curve | Listing lead ranges from ~14h (weather) to ~4 months (World Cup) |
+| 20 | 2026-10-04 | Event-date rules kept in a reviewed config table (series, rule, offset, % consistent, date checked); milestone coverage verified per sports series; <99% consistency → manual review | Milestones verified for NBA only; close-date fallback misdates 24% of NBA games |
+| 21 | 2026-10-04 | Include KXFEDDECISION and KXWCGAME (WC reported separately as a cold-start stress test); exclude KXNEXTTEAMNBA | Fed and WC have scheduled dates; NEXTTEAMNBA resolves whenever a trade happens |
+| 22 | 2026-10-04 | Dynamic-strike series stay in the global model; features use only strikes listed by the issue time; fixed/dynamic flag; errors reported by group; strike count is not a target | 46 head series add strikes after listing; additions are Kalshi's supply response, partly driven by demand |
+| 23 | 2026-10-04 | Store fixture_id (shared milestone) on sports events now; fixture features in v1; grouped reconciliation deferred to v2 | Fixtures exist only for sports; sibling markets list at different times |
+| 24 | 2026-10-04 | Bottom level for 15-minute and hourly series = series × day; events stored as counts | 96 near-identical events a day add no information beyond the daily total |
+| 25 | 2026-10-04 | Historical archive is sorted newest-first by `created_time`; the crawl stop rule uses created time minus a per-series lifespan margin. **Margin amended by #46** | 0 created_time breaks across 130 series vs 2,192 close_time breaks; close-based stop rule could miss markets created before but closing after 2025-01-01 |
+| 26 | 2026-10-04 | Markets in both tiers: keep the historical copy | 195,107 overlapping markets, 0 volume mismatches between tiers |
+| 27 | 2026-10-04 | Head crawl (130 in-scope series) verified complete for the training window | Crawled/catalogue volume = 1.0000 for all fully crawled series once live tiers are refreshed; corrected stop rule recovered 50 missed KXBTCD markets (0.004% of its volume); remaining gaps are pre-window history |
+| 28 | 2026-10-04 | Live-tier refreshes move old pages to a dated snapshot folder; raw pages are never deleted | Raw data stays immutable and every reconciliation is reproducible |
+| 29 | 2026-10-04 | Milestone start beats the date in the event name when they disagree | Tennis mismatches are milestones 1–2 days *after* the name date (rescheduled play); 94–98% of tennis markets close ~2h after milestone start |
+| 30 | 2026-10-04 | Event-date rules are validated on in-window events only (close ≥ 2025-01-01), using a timestamp check: markets should close within (median milestone duration + 12h) of milestone start | Name-date check fails for global sports and older conventions (NY/CHI/MIA weather from 2023) |
+| 31 | 2026-10-04 | Events without a milestone in a milestone series get close day + the series' modal (milestone day − close day) offset; every event records its date source | Coverage is 95–99% in most sports series; source column keeps fallbacks auditable |
+| 32 | 2026-10-05 | Temperature family (KXHIGH*) dated by the date in the event name (reviewed per-series rule) | Close convention changed mid-March 2026 (23:59 ET same day → ~01:00 ET next day); the name date is the measured day; for LA it equals close −1 for 100% of events |
+| 33 | 2026-10-05 | Timing checks and the forecast target use completed events only (no market initialized, inactive or active). **Cancelled/voided handling in #47** | Open events' close_time is a scheduled maximum, e.g. UEFA Nations League markets show kick-off + 48h until closed early |
+| 34 | 2026-10-05 | Mention series dated by milestone with a series-specific timing window | Markets resolve the next morning (~18h after the speech or match starts) |
+| 35 | 2026-10-05 | Primary forecast excludes incentives (baseline demand); incentive-aware variant uses start_date ≤ issue time; difference reported as association, not effect | Forecast feeds incentive allocation (circularity); Kalshi selects incentivised markets |
+| 36 | 2026-10-05 | Exclude never-traded series; series with tiny but non-zero volume stay in | Zero-volume series flatter accuracy; no effect on totals; conservative look-ahead |
+| 37 | 2026-10-05 | Tail crawl required before growth claims and before training the cold-start component; first test whether /series lists discontinued series | Head selected by today's volume, so training sees only new series that succeeded |
+| 38 | 2026-10-05 | Target = log(event volume / trailing series baseline known at issue time); mean forecasts for reconciliation, quantiles for intervals | Tree models can't extrapolate ~9× growth; summed medians undershoot totals |
+| 39 | 2026-10-05 | Seasonality via known-calendar features; no annual seasonal-naive baseline | ~13 months of training data, so each annual cycle appears once |
+| 40 | 2026-10-05 | Backtest: weekly rolling origins; scale-free errors per origin, averaged equally; volume-weighted and series-weighted both reported; World Cup reported separately | Growth and launch months would dominate a pooled error |
+| 41 | 2026-10-05 | Multi-day events dated by start; issue times relative to start; flagged class; 14 undated events excluded | Decisions are made before the start; 3.2% of volume |
+| 42 | 2026-10-05 | Pickup (volume so far) for game-winner + Fed subset only; Fed on daily candles; evaluated as a same-subset ablation | ~58k markets ≈ 4h for ~45% of volume; per-market candle calls make full coverage infeasible |
+| 43 | 2026-10-05 | Date rules run as automated tests on every refresh | Two rules have already broken silently over time (occurrence_datetime; Mar 2026 close-time change) |
+| 44 | 2026-10-05 | Train from 2025-09; earlier months used only for lag features; sensitivity check from 2025-01 | Pre-Sep 2025 in-scope market was 2–3% of current size, 13–31 series, different mix |
+| 45 | 2026-10-05 | Volume Incentive Program end (13 Oct 2026) is not a usable shock; pre-registered study dropped. Observable subsidies (Sep 2025–Sep 2026, $0.93M, mostly 15-min crypto) negligible vs target; pre-Sep 2025 subsidies unobservable but outside the training window. Deposit and Trading Reward program (filed Sep 2026) not visible in the API: a possible unexplained level shift, start date to be confirmed | Volume incentives fell to ~90 markets from Jun 2026; none active after 19 Sep 2026 |
+| 46 | 2026-10-05 | Crawl stop-rule margin = 1.5 × longest observed market life + 1 day | Longest life is estimated from crawled data; a longer market would be missed silently |
+| 47 | 2026-10-05 | Cancelled or voided events are excluded from targets, with their count and volume logged | A forecaster at issue time didn't know the event would be cancelled: a small, measured selection effect |
