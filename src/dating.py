@@ -1,4 +1,4 @@
-"""Event dating as reusable code (decision rows 14-15, 20, 29-34, 41, 49, 68, 72).
+"""Event dating as reusable code (decision rows 14-15, 20, 29-34, 41, 49, 68, 72, 86).
 Rules are chosen and validated on completed, non-voided in-window events. The same qualification
 test chooses rules (assign_rules) and re-checks saved rules on fresh data (check_rules, row 43).
 No series-specific overrides: every rule is general."""
@@ -8,6 +8,9 @@ from events import pull_events, event_milestones
 
 ET = "America/New_York"
 MENTION_WINDOW_H = 36            # mention markets resolve next morning (row 34)
+MIN_EVENTS_FOR_PATTERN = 5       # a series-level pattern (fixed offset) needs at least this many completed events (row 86)
+MAX_OFFSET_DAYS = 7              # an event date more than a week from the close is not a dated occurrence near trading (row 86)
+MAX_MULTIDAY_H = 168             # multi-day events up to a week (tournaments, playoff series); longer = out of scope (row 86)
 PRIORITY = ["milestone", "milestone_multiday", "milestone_multiday_partial", "name_date", "close_offset"]
 
 
@@ -69,7 +72,6 @@ def series_stats(ev):
     st = pd.DataFrame({"events": g.size(), "volume": g["vol"].sum(),
                        "ms_cov": has.groupby(s).mean(), "dur_med_h": g["dur_h"].median(),
                        "name_cov": b["name_day"].notna().groupby(s).mean()})
-    # Timing window: each event's own milestone duration where known, else the series median, plus 12h
     window = b["dur_h"].where(b["dur_h"] > 0).fillna(s.map(st["dur_med_h"])).fillna(0) + 12
     window = window.where(~s.str.contains("MENTION"), MENTION_WINDOW_H)
     st["timing_ok"] = (has & b["close_after_h"].between(0, window)).groupby(s).sum() / has.groupby(s).sum()
@@ -84,17 +86,19 @@ def series_stats(ev):
 def _qualifies(rule, r):
     """The single validation test for each rule (used to choose rules and to re-check them)."""
     multi = r["dur_med_h"] > 24
+    week = r["dur_med_h"] <= MAX_MULTIDAY_H
     ms_ok = r["timing_ok"] >= 0.85 and (r["ms_cov"] >= 0.95 or (r["ms_cov"] >= 0.80 and r["exp_misdate"] <= 0.05))
     if rule == "milestone":
         return bool(ms_ok and not multi)
     if rule == "milestone_multiday":
-        return bool(ms_ok and multi)
+        return bool(ms_ok and multi and week)
     if rule == "milestone_multiday_partial":
-        return bool(multi and r["ms_cov"] >= 0.50 and r["started_ok"] >= 0.85)
+        return bool(multi and week and r["ms_cov"] >= 0.50 and r["started_ok"] >= 0.85)
     if rule == "name_date":
         return bool(r["name_cov"] >= 0.99 and r["name_in_window"] >= 0.99)
     if rule.startswith("close") and rule != "close+0 (hourly)":
-        return bool(r["ms_cov"] >= 0.20 and r["ms_off_share"] >= 0.99)
+        return bool(r["events"] >= MIN_EVENTS_FOR_PATTERN and r["ms_cov"] >= 0.20
+                    and r["ms_off_share"] >= 0.99 and abs(r["ms_off_mode"]) <= MAX_OFFSET_DAYS)
     return rule == "close+0 (hourly)"
 
 
@@ -140,9 +144,7 @@ def date_events(ev, cfg):
     ev.loc[sel, "event_date"], ev.loc[sel, "date_source"] = ev.loc[sel, "close_day"] + k, "close_offset"
     sel = ev["hf"]
     ev.loc[sel, "event_date"], ev.loc[sel, "date_source"] = ev.loc[sel, "close_day"], "close_day_hourly"
-    # multi-day partial: events without a milestone stay undated and are excluded (row 41)
 
-    # Row 49: a milestone starting more than 1h after the market closed is stale (rescheduled); use the fallback
     stale = (ev["date_source"] == "milestone") & ((ev["ms_start"] - ev["close_ts"]).dt.total_seconds() > 3600)
     ev.loc[stale, "event_date"] = ev.loc[stale, "close_day"] + fb[stale]
     ev.loc[stale, "date_source"] = "milestone_stale_fallback"
@@ -169,10 +171,14 @@ def review_reason(r):
     """Why a series failed every rule (for reporting excluded volume by reason, row 72)."""
     if r["ms_cov"] < 0.20 and r["name_cov"] < 0.99:
         return "no usable dates"
+    if r["dur_med_h"] > MAX_MULTIDAY_H:
+        return "longer than a week (season-long)"
     if r["dur_med_h"] > 24:
         return "multi-day / delayed resolution"
     if r["timing_ok"] < 0.85:
         return "milestone timing fails"
+    if r["events"] < MIN_EVENTS_FOR_PATTERN and r["ms_cov"] >= 0.20:
+        return "too few events for an offset pattern"
     if r["ms_cov"] < 0.95:
         return "partial milestone coverage"
     return "inconsistent name dates"
