@@ -1,0 +1,53 @@
+"""Frozen v1 configuration (rows 112, 114, 120, 124). Generated in Block 60 from the tuned settings; tagged."""
+DATA_VERSION = "crawl 2026-10-04 (backtest data frozen, row 116); units_v6; features_v3"
+TRAIN_START = "2025-09-01"
+RETRAIN_RULE = "weekly, Mondays 00:00 New York time; each forecast uses the latest model trained only on units closed before its issue time"
+MEDIAN_OBJECTIVE = "l1 on log1p(volume) - log1p(baseline)"
+MEDIAN_PARAMS = {'colsample_bytree': 0.6222813829035301,
+ 'deterministic': True,
+ 'force_col_wise': True,
+ 'learning_rate': 0.023830648202020462,
+ 'min_child_samples': 507,
+ 'n_estimators': 700,
+ 'n_jobs': 4,
+ 'num_leaves': 164,
+ 'reg_lambda': 1.21225748733939,
+ 'seed': 42,
+ 'subsample': 0.7241196403628287}
+WEIGHT_MODE = 'none'
+TWEEDIE_POWER = 1.2
+FEATURES = ['horizon',
+ 'dow',
+ 'hour',
+ 'dow_hour',
+ 'month',
+ 'lead_h',
+ 'to_anchor_h',
+ 'since_listing_h',
+ 'strikes_so_far',
+ 'fixture_units',
+ 'fixture_series',
+ 'slate_size',
+ 'multiday',
+ 'hf',
+ 'category',
+ 'segment',
+ 'med28d',
+ 'mean28d',
+ 'med10',
+ 'last',
+ 'weekly',
+ 'n_prior',
+ 'growth',
+ 'skew28',
+ 'trend10',
+ 'since_last_h',
+ 'exch_7d',
+ 'exch_growth',
+ 'cat_7d',
+ 'cat_med28d',
+ 'pop_max',
+ 'pop_mean',
+ 'pop_min',
+ 'pop_games_min',
+ 'n_participants']
