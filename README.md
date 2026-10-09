@@ -72,7 +72,7 @@ Full list in the [model card](docs/model_card.md).
 
 ## Reproducing
 
-Requires Python 3.12 and about 30 GB of free disk for the raw crawl.
+Requires Python 3.12 and about 10 GB of free disk for the raw crawl.
 
 ```bash
 python -m venv .venv
