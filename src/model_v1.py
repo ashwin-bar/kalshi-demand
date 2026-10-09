@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 from features import G1, G2, G3
-
+from pathlib import Path
 ET = "America/New_York"
 TRAIN_START = pd.Timestamp("2025-09-01")                                   # row 44
 PARAMS = dict(learning_rate=0.08, n_estimators=400, num_leaves=63, min_child_samples=200, subsample=0.8,
@@ -20,7 +20,7 @@ MIN_UNITS, MIN_SERIES = 100, 5                                             # row
 def git_hash():
     try:
         return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
-                                       cwd=r"C:\Users\ashwi\kalshi-demand", text=True).strip()
+                                          cwd=str(Path(__file__).resolve().parents[1]), text=True).strip()
     except Exception:
         return "unknown"
 

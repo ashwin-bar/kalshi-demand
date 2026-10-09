@@ -2,9 +2,9 @@
 import time
 from pathlib import Path
 import requests
-
-PROJECT_DIR = Path(r"C:\Users\ashwi\kalshi-demand")
-DATA_ROOT = Path(r"D:\kalshi_demand")
+import os
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+DATA_ROOT = Path(os.environ.get("KALSHI_DATA_ROOT", PROJECT_DIR / "data"))
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
 
 _session = requests.Session()
